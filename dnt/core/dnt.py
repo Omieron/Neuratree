@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from dnt.config import DNTConfig
 from dnt.core.buffer import WorkingMemoryBuffer
@@ -10,6 +10,8 @@ from dnt.core.tree import NeuronTree
 from dnt.learning.ghsom import GHSOMGrower
 from dnt.learning.hebbian import HebbianLearner
 from dnt.learning.triplet import TripletExtractor
+from dnt.memory.consolidate import ConsolidationEngine
+from dnt.memory.snapshot import SnapshotManager
 
 
 class DNT:
@@ -25,6 +27,25 @@ class DNT:
         self._triplet_extractor = TripletExtractor(self._config)
         self._hebbian = HebbianLearner(self._config)
         self._ghsom = GHSOMGrower(self._config)
+        self._engine = ConsolidationEngine(
+            config=self._config,
+            triplet_extractor=self._triplet_extractor,
+            hebbian=self._hebbian,
+            ghsom=self._ghsom,
+            tree=self._tree,
+        )
+
+    # ------------------------------------------------------------------
+    # Lifecycle (background mode)
+    # ------------------------------------------------------------------
+
+    async def start(self) -> None:
+        """Start the background consolidation worker."""
+        await self._engine.start()
+
+    async def stop(self) -> None:
+        """Drain the consolidation queue and stop the background worker."""
+        await self._engine.stop()
 
     # ------------------------------------------------------------------
     # Core operations
@@ -41,7 +62,6 @@ class DNT:
             source = "user"
             logic_type = "fact"
 
-        # delegate to adapter if one is set
         if self._adapter is not None:
             obs = self._adapter.to_atomic(data)
         else:
@@ -54,12 +74,15 @@ class DNT:
         self._buffer.push(obs)
         self._observe_count += 1
 
-        # trigger consolidation when threshold is reached
         if self._observe_count % self._config.consolidate_every == 0:
             await self.consolidate()
 
     async def query(self, question: str) -> str:
-        """Search L1 buffer and NeuronTree, return a context string."""
+        """
+        ATP query: search L1 buffer and NeuronTree, return structured context.
+        Tree results include active edge relations and weights so the LLM
+        receives compact structural data instead of raw text.
+        """
         buffer_hits = self._buffer.search(question)
         tree_hits = self._tree.hop_traversal(
             question,
@@ -67,7 +90,7 @@ class DNT:
             activation_threshold=self._config.activation_threshold,
         )
 
-        parts: list[str] = []
+        parts: List[str] = []
 
         if buffer_hits:
             parts.append("=== Hot Memory (L1 Buffer) ===")
@@ -75,10 +98,19 @@ class DNT:
                 parts.append(f"[{obs.logic_type}] {obs.raw_text}")
 
         if tree_hits:
-            parts.append("=== Neuron Tree ===")
+            parts.append("=== Neuron Tree (ATP active paths) ===")
             for node in tree_hits[:5]:
                 label = node.summary or node.label
-                parts.append(f"[node] {label}")
+                neighbors = self._tree.get_active_neighbors(
+                    node.id, self._config.activation_threshold
+                )
+                if neighbors:
+                    rel_str = "; ".join(
+                        f"{rel} → {n.label}" for n, rel in neighbors[:3]
+                    )
+                    parts.append(f"[L{node.level}] {label} | {rel_str}")
+                else:
+                    parts.append(f"[L{node.level}] {label}")
 
         if not parts:
             return "No relevant context found."
@@ -87,43 +119,48 @@ class DNT:
 
     async def consolidate(self) -> None:
         """
-        Drain the buffer, extract triplets, apply Hebbian updates,
-        and grow the tree via GHSOM if needed.
+        Flush the buffer and run one consolidation cycle.
+        In background mode, observations are queued and processed
+        by the worker without blocking the caller.
         """
         observations = self._buffer.flush()
         if not observations:
             return
 
-        all_triplets = []
-        for obs in observations:
-            triplets = await self._triplet_extractor.extract(obs)
-            all_triplets.extend(triplets)
-
-        if all_triplets:
-            self._hebbian.update(self._tree, all_triplets)
-            self._ghsom.grow_if_needed(self._tree)
+        if self._engine.is_running:
+            await self._engine.enqueue(observations)
+        else:
+            await self._engine.run_once(observations)
 
     # ------------------------------------------------------------------
-    # Snapshot
+    # Snapshot — delegated to SnapshotManager
     # ------------------------------------------------------------------
 
     def export(self) -> dict:
-        return {
-            "config": self._config.model_dump(),
-            "tree": self._tree.to_dict(),
-            "buffer": [obs.model_dump(mode="json") for obs in self._buffer.peek()],
-            "observe_count": self._observe_count,
-        }
+        return SnapshotManager.export(
+            self._config, self._tree, self._buffer, self._observe_count
+        )
 
     @classmethod
     def from_snapshot(cls, snapshot: dict) -> "DNT":
-        config = DNTConfig(**snapshot.get("config", {}))
+        config, tree, buffer_items, observe_count = SnapshotManager.restore(snapshot)
         instance = cls(config=config)
-        instance._tree = NeuronTree.from_dict(snapshot.get("tree", {}))
-        for obs_data in snapshot.get("buffer", []):
-            instance._buffer.push(AtomicObservation(**obs_data))
-        instance._observe_count = snapshot.get("observe_count", 0)
+        instance._tree = tree
+        # re-wire engine to the restored tree
+        instance._engine._tree = tree
+        for obs in buffer_items:
+            instance._buffer.push(obs)
+        instance._observe_count = observe_count
         return instance
+
+    def save(self, path: str) -> None:
+        """Persist state to a JSON file."""
+        SnapshotManager.save(self.export(), path)
+
+    @classmethod
+    def load(cls, path: str) -> "DNT":
+        """Restore state from a JSON file."""
+        return cls.from_snapshot(SnapshotManager.load(path))
 
     # ------------------------------------------------------------------
     # Helpers
