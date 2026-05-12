@@ -7,6 +7,9 @@ from dnt.config import DNTConfig
 from dnt.core.buffer import WorkingMemoryBuffer
 from dnt.core.models import AtomicObservation, DNTStats
 from dnt.core.tree import NeuronTree
+from dnt.learning.ghsom import GHSOMGrower
+from dnt.learning.hebbian import HebbianLearner
+from dnt.learning.triplet import TripletExtractor
 
 
 class DNT:
@@ -18,6 +21,10 @@ class DNT:
         self._tree = NeuronTree()
         self._observe_count: int = 0
         self._adapter = None
+
+        self._triplet_extractor = TripletExtractor(self._config)
+        self._hebbian = HebbianLearner(self._config)
+        self._ghsom = GHSOMGrower(self._config)
 
     # ------------------------------------------------------------------
     # Core operations
@@ -52,10 +59,7 @@ class DNT:
             await self.consolidate()
 
     async def query(self, question: str) -> str:
-        """
-        Phase 1: search L1 buffer and NeuronTree with simple string matching.
-        Returns a context string.
-        """
+        """Search L1 buffer and NeuronTree, return a context string."""
         buffer_hits = self._buffer.search(question)
         tree_hits = self._tree.hop_traversal(
             question,
@@ -83,10 +87,21 @@ class DNT:
 
     async def consolidate(self) -> None:
         """
-        Phase 1 stub: flush the buffer.
-        Phase 2 will replace this with real triplet extraction + Hebbian update.
+        Drain the buffer, extract triplets, apply Hebbian updates,
+        and grow the tree via GHSOM if needed.
         """
-        self._buffer.flush()
+        observations = self._buffer.flush()
+        if not observations:
+            return
+
+        all_triplets = []
+        for obs in observations:
+            triplets = await self._triplet_extractor.extract(obs)
+            all_triplets.extend(triplets)
+
+        if all_triplets:
+            self._hebbian.update(self._tree, all_triplets)
+            self._ghsom.grow_if_needed(self._tree)
 
     # ------------------------------------------------------------------
     # Snapshot
