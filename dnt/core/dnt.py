@@ -20,11 +20,11 @@ class DNT:
         self._adapter = None
 
     # ------------------------------------------------------------------
-    # Temel İşlemler
+    # Core operations
     # ------------------------------------------------------------------
 
     async def observe(self, data: Union[str, Dict[str, Any]]) -> None:
-        """Yeni bir gözlem ekle."""
+        """Add a new observation."""
         if isinstance(data, dict):
             raw_text = data.get("text") or json.dumps(data, ensure_ascii=False)
             source = data.get("source", "user")
@@ -34,7 +34,7 @@ class DNT:
             source = "user"
             logic_type = "fact"
 
-        # Adaptör varsa dönüştür
+        # delegate to adapter if one is set
         if self._adapter is not None:
             obs = self._adapter.to_atomic(data)
         else:
@@ -47,18 +47,18 @@ class DNT:
         self._buffer.push(obs)
         self._observe_count += 1
 
-        # Konsolidasyon eşiği doldu mu?
+        # trigger consolidation when threshold is reached
         if self._observe_count % self._config.consolidate_every == 0:
             await self.consolidate()
 
-    async def query(self, soru: str) -> str:
+    async def query(self, question: str) -> str:
         """
-        Faz 1: L1 buffer + NeuronTree'yi basit string matching ile sorgula.
-        Bağlam stringi döndür.
+        Phase 1: search L1 buffer and NeuronTree with simple string matching.
+        Returns a context string.
         """
-        buffer_hits = self._buffer.search(soru)
+        buffer_hits = self._buffer.search(question)
         tree_hits = self._tree.hop_traversal(
-            soru,
+            question,
             hop_limit=self._config.hop_limit,
             activation_threshold=self._config.activation_threshold,
         )
@@ -66,25 +66,25 @@ class DNT:
         parts: list[str] = []
 
         if buffer_hits:
-            parts.append("=== Sıcak Hafıza (L1 Buffer) ===")
+            parts.append("=== Hot Memory (L1 Buffer) ===")
             for obs in buffer_hits[:5]:
                 parts.append(f"[{obs.logic_type}] {obs.raw_text}")
 
         if tree_hits:
-            parts.append("=== Nöron Ağacı ===")
+            parts.append("=== Neuron Tree ===")
             for node in tree_hits[:5]:
                 label = node.summary or node.label
-                parts.append(f"[düğüm] {label}")
+                parts.append(f"[node] {label}")
 
         if not parts:
-            return "İlgili bağlam bulunamadı."
+            return "No relevant context found."
 
         return "\n".join(parts)
 
     async def consolidate(self) -> None:
         """
-        Faz 1 stub: buffer'ı temizle.
-        Faz 2'de gerçek triplet çıkarımı + Hebbian güncelleme gelecek.
+        Phase 1 stub: flush the buffer.
+        Phase 2 will replace this with real triplet extraction + Hebbian update.
         """
         self._buffer.flush()
 
@@ -111,7 +111,7 @@ class DNT:
         return instance
 
     # ------------------------------------------------------------------
-    # Yardımcılar
+    # Helpers
     # ------------------------------------------------------------------
 
     def set_adapter(self, adapter: Any) -> None:

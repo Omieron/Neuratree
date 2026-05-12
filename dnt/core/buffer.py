@@ -7,7 +7,7 @@ from dnt.core.models import AtomicObservation
 
 
 class WorkingMemoryBuffer:
-    """Deque tabanlı L1 sıcak hafıza tamponu."""
+    """Deque-based L1 hot memory buffer."""
 
     def __init__(self, max_size: int = 50) -> None:
         self._max_size = max_size
@@ -18,8 +18,8 @@ class WorkingMemoryBuffer:
 
     def search(self, query: str) -> List[AtomicObservation]:
         """
-        Faz 1: Basit keyword eşleşmesi.
-        Sorgu kelimelerinden en az biri raw_text'te geçiyorsa döndür.
+        Phase 1: simple keyword matching.
+        Returns observations where at least one query token appears in raw_text.
         """
         tokens = set(query.lower().split())
         results: List[AtomicObservation] = []
@@ -29,17 +29,17 @@ class WorkingMemoryBuffer:
             if tokens & text_tokens:
                 results.append(obs)
 
-        # En yeni gözlemler önce
+        # most recent first
         return list(reversed(results))
 
     def flush(self) -> List[AtomicObservation]:
-        """Tamponu boşalt ve içeriği döndür."""
+        """Drain the buffer and return its contents."""
         items = list(self._buffer)
         self._buffer.clear()
         return items
 
     def peek(self) -> List[AtomicObservation]:
-        """Tamponu temizlemeden içeriği döndür."""
+        """Return buffer contents without clearing."""
         return list(self._buffer)
 
     def __len__(self) -> int:

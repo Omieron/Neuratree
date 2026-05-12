@@ -9,11 +9,11 @@ from dnt.core.models import NeuronEdge, NeuronNode
 
 
 class NeuronTree:
-    """NetworkX DiGraph üzerine inşa edilmiş nöron ağacı."""
+    """Neuron tree built on top of a NetworkX DiGraph."""
 
     def __init__(self) -> None:
         self._graph: nx.DiGraph = nx.DiGraph()
-        # id -> NeuronNode hızlı erişim için
+        # id -> NeuronNode for fast lookups
         self._nodes: Dict[UUID, NeuronNode] = {}
 
     def add_node(self, node: NeuronNode) -> None:
@@ -39,9 +39,9 @@ class NeuronTree:
         activation_threshold: float = 0.3,
     ) -> List[NeuronNode]:
         """
-        Faz 1: LLM olmadan basit string matching ile traversal.
-        Sorgu kelimelerini label'larda arar, eşleşen düğümlerden başlayıp
-        komşulara hop_limit kadar genişler.
+        Phase 1: traversal using simple string matching instead of embeddings.
+        Finds seed nodes whose labels overlap with query tokens, then expands
+        to neighbors up to hop_limit steps.
         """
         if not self._nodes:
             return []
@@ -51,14 +51,14 @@ class NeuronTree:
 
         for node in self._nodes.values():
             label_tokens = set(node.label.lower().split())
-            if tokens & label_tokens:  # kesişim varsa seed
+            if tokens & label_tokens:  # at least one token in common
                 seed_ids.append(str(node.id))
 
         if not seed_ids:
             return []
 
         visited: set[str] = set()
-        frontier = seed_ids[:3]  # en fazla 3 seed
+        frontier = seed_ids[:3]  # cap seeds at 3
 
         for _ in range(hop_limit):
             next_frontier: List[str] = []
