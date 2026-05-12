@@ -10,6 +10,7 @@ from dnt.core.tree import NeuronTree
 from dnt.learning.ghsom import GHSOMGrower
 from dnt.learning.hebbian import HebbianLearner
 from dnt.learning.triplet import TripletExtractor
+from dnt.llm.base import LLMProvider
 from dnt.memory.consolidate import ConsolidationEngine
 from dnt.memory.snapshot import SnapshotManager
 
@@ -17,14 +18,22 @@ from dnt.memory.snapshot import SnapshotManager
 class DNT:
     """Developmental Neuron Tree — public API."""
 
-    def __init__(self, config: Optional[DNTConfig] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[DNTConfig] = None,
+        llm_provider: Optional[LLMProvider] = None,
+    ) -> None:
         self._config = config or DNTConfig()
         self._buffer = WorkingMemoryBuffer(max_size=self._config.buffer_size)
         self._tree = NeuronTree()
         self._observe_count: int = 0
         self._adapter = None
 
-        self._triplet_extractor = TripletExtractor(self._config)
+        # auto-build a provider from config when none is injected
+        if llm_provider is None:
+            llm_provider = self._provider_from_config(self._config)
+
+        self._triplet_extractor = TripletExtractor(self._config, llm_provider=llm_provider)
         self._hebbian = HebbianLearner(self._config)
         self._ghsom = GHSOMGrower(self._config)
         self._engine = ConsolidationEngine(
@@ -166,8 +175,28 @@ class DNT:
     # Helpers
     # ------------------------------------------------------------------
 
+    def set_llm_provider(self, provider: LLMProvider) -> None:
+        """Swap the LLM backend at runtime."""
+        self._triplet_extractor = TripletExtractor(self._config, llm_provider=provider)
+        self._engine._triplet_extractor = self._triplet_extractor
+
     def set_adapter(self, adapter: Any) -> None:
         self._adapter = adapter
+
+    # ------------------------------------------------------------------
+    # Internal factory
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _provider_from_config(config: DNTConfig) -> Optional[LLMProvider]:
+        """Build a provider from config keys; returns None if no key is set."""
+        if config.openai_api_key:
+            from dnt.llm.openai_provider import OpenAIProvider
+            return OpenAIProvider(config.openai_api_key, config.llm_model)
+        if config.anthropic_api_key:
+            from dnt.llm.anthropic_provider import AnthropicProvider
+            return AnthropicProvider(config.anthropic_api_key, config.anthropic_model)
+        return None
 
     def stats(self) -> DNTStats:
         return DNTStats(
