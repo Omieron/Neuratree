@@ -19,8 +19,9 @@ build/
 .coverage
 htmlcov/
 
-# pyvis / Streamlit temp files
+# pyvis / Streamlit temp files (but keep the app UI)
 *.html
+!dnt/ui/app.html
 .streamlit/
 
 # Environment variables

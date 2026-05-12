@@ -36,9 +36,17 @@ def main() -> None:
 
 
 def _dashboard() -> None:
-    dashboard_path = Path(__file__).parent / "ui" / "dashboard.py"
+    import webbrowser, threading, time
+    host, port = "localhost", 8501
+    threading.Timer(1.2, lambda: webbrowser.open(f"http://{host}:{port}")).start()
+    print(f"\n  Dashboard running at http://{host}:{port}\n  Press Ctrl+C to stop.\n")
     subprocess.run(
-        [sys.executable, "-m", "streamlit", "run", str(dashboard_path)],
+        [
+            sys.executable, "-m", "uvicorn",
+            "dnt.ui.server:app",
+            "--host", host,
+            "--port", str(port),
+        ],
         check=True,
     )
 

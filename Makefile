@@ -29,8 +29,8 @@ install-anthropic: ## Also install the optional Anthropic provider
 # ── Run ────────────────────────────────────────────────────────────────────
 
 .PHONY: run
-run: ## Start the Streamlit dashboard
-	$(VENV)/bin/streamlit run dnt/ui/dashboard.py
+run: ## Start the dashboard (FastAPI + browser)
+	$(PYTHON) -m uvicorn dnt.ui.server:app --host localhost --port 8501
 
 .PHONY: bench
 bench: ## Run the RAG vs DNT token benchmark
