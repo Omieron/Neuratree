@@ -9,8 +9,9 @@ class GHSOMGrower:
     """
     Simplified GHSOM (Growing Hierarchical Self-Organizing Map).
     Monitors each node's quantization_error; when it exceeds
-    parent_QE * tau1, the node expands into two child nodes.
-    Phase 2: tau1 is fixed. Phase 3 will make it adaptive.
+    parent_QE * effective_tau1, the node expands into two child nodes.
+    Phase 3: tau1 is adaptive — it scales with tree size to prevent
+    runaway growth as the tree matures.
     """
 
     def __init__(self, config: DNTConfig) -> None:
@@ -21,25 +22,37 @@ class GHSOMGrower:
         Scan all nodes and expand overloaded ones.
         Returns the number of new nodes created.
         """
-        # snapshot to avoid iterating over newly created children
         candidates = tree.all_nodes()
+        tau1 = self._effective_tau1(tree)
         new_nodes = 0
         for node in candidates:
-            if self._should_grow(tree, node):
+            if self._should_grow(tree, node, tau1):
                 new_nodes += self._expand(tree, node)
         return new_nodes
+
+    # ------------------------------------------------------------------
+    # Adaptive tau1 (Phase 3)
+    # ------------------------------------------------------------------
+
+    def _effective_tau1(self, tree: NeuronTree) -> float:
+        """
+        tau1 grows slightly with tree size so large trees expand
+        less aggressively than small ones. Capped at 0.9.
+        """
+        n = tree.node_count
+        return min(0.9, self._config.tau1 * (1.0 + n * 0.01))
 
     # ------------------------------------------------------------------
     # Growth decision
     # ------------------------------------------------------------------
 
-    def _should_grow(self, tree: NeuronTree, node: NeuronNode) -> bool:
+    def _should_grow(self, tree: NeuronTree, node: NeuronNode, tau1: float) -> bool:
         if node.level >= self._config.max_depth:
             return False
         if node.quantization_error < self._config.tau2:
             return False
         parent_qe = self._parent_qe(tree, node)
-        return node.quantization_error > parent_qe * self._config.tau1
+        return node.quantization_error > parent_qe * tau1
 
     def _parent_qe(self, tree: NeuronTree, node: NeuronNode) -> float:
         """Root nodes use 1.0 as their reference QE."""
@@ -74,22 +87,10 @@ class GHSOMGrower:
         tree.add_node(child_a)
         tree.add_node(child_b)
         tree.add_edge(
-            NeuronEdge(
-                source=node.id,
-                target=child_a.id,
-                relation="expands_to",
-                weight=0.5,
-            )
+            NeuronEdge(source=node.id, target=child_a.id, relation="expands_to", weight=0.5)
         )
         tree.add_edge(
-            NeuronEdge(
-                source=node.id,
-                target=child_b.id,
-                relation="expands_to",
-                weight=0.5,
-            )
+            NeuronEdge(source=node.id, target=child_b.id, relation="expands_to", weight=0.5)
         )
-
-        # reset parent QE after expansion
         node.quantization_error *= 0.1
         return 2
