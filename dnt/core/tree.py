@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -16,6 +17,10 @@ class NeuronTree:
         # id -> NeuronNode for fast lookups
         self._nodes: Dict[UUID, NeuronNode] = {}
 
+    # ------------------------------------------------------------------
+    # Mutation
+    # ------------------------------------------------------------------
+
     def add_node(self, node: NeuronNode) -> None:
         self._nodes[node.id] = node
         self._graph.add_node(str(node.id), **node.model_dump())
@@ -29,8 +34,55 @@ class NeuronTree:
             last_activated=edge.last_activated,
         )
 
+    def update_edge_weight(
+        self, source_id: UUID, target_id: UUID, weight: float
+    ) -> None:
+        u, v = str(source_id), str(target_id)
+        if self._graph.has_edge(u, v):
+            self._graph.edges[u, v]["weight"] = weight
+            self._graph.edges[u, v]["last_activated"] = time.time()
+
+    def decay_all_edges(self, decay_factor: float) -> None:
+        for _, _, data in self._graph.edges(data=True):
+            data["weight"] = max(0.0, data.get("weight", 0.1) * decay_factor)
+
+    # ------------------------------------------------------------------
+    # Lookup
+    # ------------------------------------------------------------------
+
     def get_node(self, node_id: UUID) -> Optional[NeuronNode]:
         return self._nodes.get(node_id)
+
+    def find_node_by_label(self, label: str) -> Optional[NeuronNode]:
+        label_lower = label.lower()
+        for node in self._nodes.values():
+            if node.label.lower() == label_lower:
+                return node
+        return None
+
+    def has_edge(self, source_id: UUID, target_id: UUID) -> bool:
+        return self._graph.has_edge(str(source_id), str(target_id))
+
+    def get_edge_weight(self, source_id: UUID, target_id: UUID) -> Optional[float]:
+        u, v = str(source_id), str(target_id)
+        if self._graph.has_edge(u, v):
+            return float(self._graph.edges[u, v].get("weight", 0.1))
+        return None
+
+    def get_parents(self, node_id: UUID) -> List[NeuronNode]:
+        parents: List[NeuronNode] = []
+        for pred in self._graph.predecessors(str(node_id)):
+            node = self._nodes.get(UUID(pred))
+            if node:
+                parents.append(node)
+        return parents
+
+    def all_nodes(self) -> List[NeuronNode]:
+        return list(self._nodes.values())
+
+    # ------------------------------------------------------------------
+    # Traversal
+    # ------------------------------------------------------------------
 
     def hop_traversal(
         self,
@@ -80,6 +132,10 @@ class NeuronTree:
                 result.append(node)
         return result
 
+    # ------------------------------------------------------------------
+    # Stats / serialization
+    # ------------------------------------------------------------------
+
     @property
     def node_count(self) -> int:
         return len(self._nodes)
@@ -92,11 +148,7 @@ class NeuronTree:
         return {
             "nodes": [n.model_dump(mode="json") for n in self._nodes.values()],
             "edges": [
-                {
-                    "source": str(u),
-                    "target": str(v),
-                    **d,
-                }
+                {"source": str(u), "target": str(v), **d}
                 for u, v, d in self._graph.edges(data=True)
             ],
         }
