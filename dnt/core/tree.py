@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -83,14 +84,21 @@ class NeuronTree:
     def get_active_neighbors(
         self, node_id: UUID, threshold: float
     ) -> List[tuple[NeuronNode, str]]:
-        """Return (neighbor_node, relation) pairs for edges above threshold."""
+        """Return (neighbor_node, relation) pairs for edges above threshold (both directions)."""
         results: List[tuple[NeuronNode, str]] = []
-        for neighbor in self._graph.successors(str(node_id)):
-            data = self._graph.edges[str(node_id), neighbor]
+        nid = str(node_id)
+        for neighbor in self._graph.successors(nid):
+            data = self._graph.edges[nid, neighbor]
             if data.get("weight", 0) >= threshold:
                 node = self._nodes.get(UUID(neighbor))
                 if node:
                     results.append((node, data.get("relation", "related_to")))
+        for neighbor in self._graph.predecessors(nid):
+            data = self._graph.edges[neighbor, nid]
+            if data.get("weight", 0) >= threshold:
+                node = self._nodes.get(UUID(neighbor))
+                if node:
+                    results.append((node, f"←{data.get('relation', 'related_to')}"))
         return results
 
     # ------------------------------------------------------------------
@@ -111,7 +119,7 @@ class NeuronTree:
         if not self._nodes:
             return []
 
-        tokens = set(query.lower().split())
+        tokens = set(re.findall(r'\b\w+\b', query.lower()))
         seed_ids: List[str] = []
 
         for node in self._nodes.values():
@@ -131,8 +139,15 @@ class NeuronTree:
                 if nid in visited:
                     continue
                 visited.add(nid)
+                # follow edges in both directions so queries on target nodes
+                # still surface their source neighbors
                 for neighbor in self._graph.successors(nid):
                     edge_data = self._graph.edges[nid, neighbor]
+                    if edge_data.get("weight", 0) >= activation_threshold:
+                        if neighbor not in visited:
+                            next_frontier.append(neighbor)
+                for neighbor in self._graph.predecessors(nid):
+                    edge_data = self._graph.edges[neighbor, nid]
                     if edge_data.get("weight", 0) >= activation_threshold:
                         if neighbor not in visited:
                             next_frontier.append(neighbor)

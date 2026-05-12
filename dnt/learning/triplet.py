@@ -61,6 +61,8 @@ class TripletExtractor:
 
     def _extract_entities(self, text: str) -> List[str]:
         nlp = self._get_nlp()
+        entities: List[str] = []
+
         if nlp is not None:
             doc = nlp(text)
             entities = [ent.text for ent in doc.ents]
@@ -69,10 +71,24 @@ class TripletExtractor:
                     entities = [chunk.root.text for chunk in doc.noun_chunks]
                 except ValueError:
                     entities = []
-        else:
-            # spaCy not installed — grab capitalised words / quoted phrases
+
+        # Fall back to regex when spaCy found nothing (blank model or not installed)
+        if not entities:
             matches = re.findall(r'"([^"]+)"|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
             entities = [m[0] or m[1] for m in matches]
+
+        # Last resort: pull out any content words (length > 3, not stopwords)
+        if not entities:
+            _STOP = {
+                "the", "a", "an", "is", "are", "was", "were", "be", "been",
+                "has", "have", "had", "does", "did", "will", "would", "could",
+                "should", "may", "might", "that", "this", "with", "from",
+                "about", "into", "they", "them", "their", "also", "just",
+            }
+            entities = [
+                w for w in re.findall(r'\b[a-zA-Z]{4,}\b', text)
+                if w.lower() not in _STOP
+            ][:8]
 
         # deduplicate, preserve order
         seen: set[str] = set()
@@ -91,8 +107,17 @@ class TripletExtractor:
     def _heuristic_extract(
         self, text: str, entities: List[str], logic_type: str
     ) -> List[Triplet]:
-        if len(entities) < 2:
+        if not entities:
             return []
+
+        # Need at least 2 entities; if only 1, pair it with the full observation
+        if len(entities) == 1:
+            # Use the first non-trivial word that differs from the entity as object
+            words = [w for w in re.findall(r'\b[a-zA-Z]{4,}\b', text)
+                     if w.lower() != entities[0].lower()]
+            if not words:
+                return []
+            entities = [entities[0], words[0]]
 
         nlp = self._get_nlp()
         predicate = "related_to"
