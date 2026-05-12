@@ -1,0 +1,16 @@
+# Core
+pydantic>=2.0
+pydantic-settings>=2.0
+networkx>=3.0
+
+# Learning
+spacy>=3.7
+openai>=1.0
+
+# UI
+streamlit>=1.30
+pyvis>=0.3
+
+# Test
+pytest>=7.0
+pytest-asyncio>=0.23
