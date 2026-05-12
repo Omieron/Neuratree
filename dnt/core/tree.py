@@ -80,6 +80,19 @@ class NeuronTree:
     def all_nodes(self) -> List[NeuronNode]:
         return list(self._nodes.values())
 
+    def get_active_neighbors(
+        self, node_id: UUID, threshold: float
+    ) -> List[tuple[NeuronNode, str]]:
+        """Return (neighbor_node, relation) pairs for edges above threshold."""
+        results: List[tuple[NeuronNode, str]] = []
+        for neighbor in self._graph.successors(str(node_id)):
+            data = self._graph.edges[str(node_id), neighbor]
+            if data.get("weight", 0) >= threshold:
+                node = self._nodes.get(UUID(neighbor))
+                if node:
+                    results.append((node, data.get("relation", "related_to")))
+        return results
+
     # ------------------------------------------------------------------
     # Traversal
     # ------------------------------------------------------------------

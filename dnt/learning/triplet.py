@@ -93,8 +93,11 @@ class TripletExtractor:
             doc = nlp(text)
             entities = [ent.text for ent in doc.ents]
             if not entities:
-                # fallback to noun chunks when NER finds nothing
-                entities = [chunk.root.text for chunk in doc.noun_chunks]
+                try:
+                    entities = [chunk.root.text for chunk in doc.noun_chunks]
+                except ValueError:
+                    # blank model has no dependency parse — skip noun chunks
+                    entities = []
         else:
             # spaCy not installed — regex: grab capitalised words / quoted phrases
             entities = re.findall(r'"([^"]+)"|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
