@@ -8,6 +8,8 @@ class DNTConfig(BaseSettings):
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5-20251001"
 
     # Bellek
     buffer_size: int = 50
