@@ -82,25 +82,23 @@ class TestTripletExtractor:
     # --- OpenAI path ---
 
     @pytest.mark.asyncio
-    async def test_openai_path_called_when_key_set(self):
+    async def test_llm_provider_called_when_set(self):
+        from dnt.llm.openai_provider import OpenAIProvider
+
         extractor = self._extractor(api_key="sk-test")
 
-        # mock entity extraction
-        mock_doc = MagicMock()
-        mock_ent = MagicMock()
-        mock_ent.text = "Alice"
-        mock_doc.ents = [mock_ent]
-        mock_doc.noun_chunks = []
-        extractor._nlp = MagicMock(return_value=mock_doc)
-
         expected = [Triplet(subject="Alice", predicate="works_at", object="Google")]
-        with patch.object(extractor, "_openai_extract", new=AsyncMock(return_value=expected)):
-            result = await extractor.extract(_obs("Alice works at Google"))
+        mock_provider = MagicMock(spec=OpenAIProvider)
+        mock_provider.extract_triplets = AsyncMock(return_value=expected)
+        extractor._llm = mock_provider
 
+        result = await extractor.extract(_obs("Alice works at Google"))
         assert result == expected
 
     @pytest.mark.asyncio
     async def test_falls_back_to_heuristic_on_api_error(self):
+        from dnt.llm.openai_provider import OpenAIProvider
+
         extractor = self._extractor(api_key="sk-test")
 
         mock_doc = MagicMock()
@@ -112,10 +110,11 @@ class TestTripletExtractor:
         mock_doc.noun_chunks = []
         extractor._nlp = MagicMock(return_value=mock_doc)
 
-        with patch.object(extractor, "_openai_extract", side_effect=Exception("API down")):
-            result = await extractor.extract(_obs("Alice works at Google"))
+        mock_provider = MagicMock(spec=OpenAIProvider)
+        mock_provider.extract_triplets = AsyncMock(side_effect=Exception("API down"))
+        extractor._llm = mock_provider
 
-        # heuristic should still return a triplet
+        result = await extractor.extract(_obs("Alice works at Google"))
         assert len(result) >= 1
 
     @pytest.mark.asyncio
