@@ -70,9 +70,17 @@ dnt/
 ├── ui/
 │   └── dashboard.py        # Streamlit live visualizer              [Phase 5]
 ├── config.py               # DNTConfig (Pydantic Settings)
+├── cli.py                  # dnt CLI entry point
 tests/
-├── test_core.py
-requirements.txt
+├── test_core.py            # 26 tests — core layer
+├── test_learning.py        # 19 tests — Hebbian + GHSOM
+├── test_memory.py          # 19 tests — consolidation + snapshots
+├── test_llm_adapters.py    # 26 tests — LLM providers + adapters
+└── test_ui.py              # 34 tests — dashboard helpers
+benchmarks/
+└── token_benchmark.py      # RAG vs DNT token comparison
+Makefile                    # make install / test / run / demo / bench
+pyproject.toml
 ```
 
 ---
@@ -80,16 +88,18 @@ requirements.txt
 ## Installation
 
 ```bash
-# Clone the repo
 git clone <repo-url>
 cd Neuratree
-
-# Create a virtual environment
-python3 -m venv .venv
+make install
 source .venv/bin/activate
+```
 
-# Install dependencies
-pip install -r requirements.txt
+That single command creates the virtual environment, installs all dependencies, and patches the `dnt` entry script for Python 3.14 compatibility.
+
+**Optional — Anthropic provider:**
+
+```bash
+make install-anthropic
 ```
 
 ---
@@ -160,10 +170,126 @@ All parameters can also be set via environment variables prefixed with `DNT_` (e
 
 ---
 
+## CLI Commands
+
+After `source .venv/bin/activate` every command below works from anywhere:
+
+| Command | What it does |
+|---|---|
+| `dnt dashboard` | Launch the Streamlit visual dashboard |
+| `dnt demo` | Interactive walkthrough — no API key required |
+| `dnt bench` | Run the RAG vs DNT token benchmark |
+| `dnt test` | Run the full test suite |
+
+Makefile equivalents: `make run`, `make demo`, `make bench`, `make test`.
+
+---
+
+## Dashboard
+
+The dashboard is a live Streamlit UI that lets you feed observations, watch the neuron tree grow, and run queries — all without writing Python.
+
+### Launch
+
+```bash
+dnt dashboard
+# or
+make run
+```
+
+Your browser opens at `http://localhost:8501`.
+
+### Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  SIDEBAR                  │  TABS                                    │
+│                           │                                          │
+│  ┌─────────────────────┐  │  [ Neuron Tree ] [ Query ] [ Token Stats]│
+│  │ Observe             │  │                                          │
+│  │ ___________________  │  │  (content changes per tab)              │
+│  │ [type observation ] │  │                                          │
+│  │ [ Observe ➕ ]      │  │                                          │
+│  └─────────────────────┘  │                                          │
+│                           │                                          │
+│  ┌─────────────────────┐  │                                          │
+│  │ [ Consolidate ⚡ ]  │  │                                          │
+│  └─────────────────────┘  │                                          │
+│                           │                                          │
+│  Stats                    │                                          │
+│  Nodes: 0                 │                                          │
+│  Edges: 0                 │                                          │
+│  Buffer: 0/50             │                                          │
+│  Depth:  0                │                                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Step-by-step walkthrough
+
+**Step 1 — Feed observations (sidebar)**
+
+Type anything in the text box and press **Observe ➕**. Each click pushes one observation into the L1 buffer. The "Buffer" counter in the stats panel ticks up. Nothing hits the tree yet.
+
+```
+"User asked about AAPL stock"          → buffer: 1/50
+"User prefers long-term holdings"      → buffer: 2/50
+"User mentioned MSFT earnings"         → buffer: 3/50
+```
+
+**Step 2 — Consolidate (sidebar)**
+
+Press **Consolidate ⚡**. The engine flushes the buffer:
+1. spaCy + LLM extract subject-predicate-object triplets from each observation
+2. Hebbian learner strengthens co-activated edges (LTP) and decays the rest (LTD)
+3. GHSOM grower expands any node whose quantization error exceeds its threshold
+
+The "Nodes", "Edges", and "Depth" counters update immediately.
+
+**Step 3 — Neuron Tree tab**
+
+Switch to the **Neuron Tree** tab to see the interactive pyvis graph.
+
+Node colors indicate depth level:
+```
+● root node (depth 0)   — blue
+● depth 1               — green
+● depth 2               — orange
+● depth 3+              — red
+```
+
+Node size scales with the number of connections. Click any node to see its details in the **Node Inspector** panel below the graph:
+- Label, level, parent UUID
+- Quantization error (how "loaded" the node is)
+- All outgoing edges with their Hebbian weights (0.0 – 1.0)
+
+**Step 4 — Query tab**
+
+Type a question in the query box and press **Query**. The traversal starts at the best-matching seed node and hops across edges that exceed the `activation_threshold`. Active nodes are highlighted in the graph. The ATP context block shows exactly what would be sent to an LLM:
+
+```
+[L0] root | mentions → AAPL (w=0.82)
+[L1] AAPL | is_a → tech stock (w=0.71)
+[L1] AAPL | related_to → MSFT (w=0.64)
+```
+
+This is the compressed representation — not raw text.
+
+**Step 5 — Token Stats tab**
+
+Shows a side-by-side bar chart comparing:
+- **RAG tokens** — approximate cost of sending raw observation text to an LLM
+- **DNT tokens** — cost of the compact ATP context returned by the same query
+
+The savings ratio is displayed above the chart. With real workloads this typically reaches 5–10x.
+
+---
+
 ## Running Tests
 
 ```bash
-PYTHONPATH=. pytest tests/ -v
+dnt test
+# or
+make test
 ```
 
 ---
@@ -173,10 +299,10 @@ PYTHONPATH=. pytest tests/ -v
 | Phase | Status | Description |
 |---|---|---|
 | 1 — Core | ✅ Done | Models, NeuronTree, Buffer, DNT API, tests |
-| 2 — Learning | 🔜 Next | Triplet extraction, Hebbian LTP/LTD, GHSOM growth |
-| 3 — Memory & Tokens | ⏳ Planned | Async consolidation, snapshot, token benchmark |
-| 4 — LLM & Adapters | ⏳ Planned | Pluggable LLM providers, ProjectAdapter |
-| 5 — UI | ⏳ Planned | Streamlit live neuron tree visualizer |
+| 2 — Learning | ✅ Done | Triplet extraction, Hebbian LTP/LTD, GHSOM growth |
+| 3 — Memory & Tokens | ✅ Done | Async consolidation, snapshot, token benchmark |
+| 4 — LLM & Adapters | ✅ Done | Pluggable LLM providers (OpenAI + Anthropic), ProjectAdapter |
+| 5 — UI | ✅ Done | Streamlit live neuron tree visualizer + CLI |
 
 ---
 
