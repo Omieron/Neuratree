@@ -298,11 +298,12 @@ make test
 
 | Phase | Status | Description |
 |---|---|---|
-| 1 — Core | ✅ Done | Models, NeuronTree, Buffer, DNT API, tests |
-| 2 — Learning | ✅ Done | Triplet extraction, Hebbian LTP/LTD, GHSOM growth |
-| 3 — Memory & Tokens | ✅ Done | Async consolidation, snapshot, token benchmark |
-| 4 — LLM & Adapters | ✅ Done | Pluggable LLM providers (OpenAI + Anthropic), ProjectAdapter |
-| 5 — UI | ✅ Done | Streamlit live neuron tree visualizer + CLI |
+| 1 — Core | ✅ Done | Models, NeuronTree, WorkingMemoryBuffer, DNT public API, 26 tests |
+| 2 — Learning | ✅ Done | spaCy triplet extraction, Hebbian LTP/LTD, GHSOM adaptive growth, 19 tests |
+| 3 — Memory & Tokens | ✅ Done | Async consolidation engine, snapshot save/load, token benchmark, 19 tests |
+| 4 — LLM & Adapters | ✅ Done | OpenAI + Anthropic providers, StringAdapter + ChatMessageAdapter, 26 tests |
+| 5 — UI & CLI | ✅ Done | Streamlit dashboard (pyvis graph, query, token stats), `dnt` CLI, 34 tests |
+| Bugfixes | ✅ Done | Bidirectional hop traversal, punctuation-safe query tokenization, entity extraction fallbacks |
 
 ---
 
