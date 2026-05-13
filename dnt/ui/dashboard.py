@@ -227,6 +227,7 @@ def build_graph_data(
         nodes.append({
             "id":    nid,
             "label": short,
+            "level": level,
             "title": (
                 f"<b style='color:#F5F5F7;font-family:system-ui'>{label}</b><br>"
                 f"<span style='color:#636366;font-family:system-ui'>"
@@ -303,6 +304,7 @@ def _build_pyvis_html(graph_data: Dict) -> str:
         height="100%", width="100%",
         bgcolor="#0A0A0A", font_color="#F5F5F7",
         directed=True,
+        cdn_resources="in_line",
     )
     net.set_options("""
     {

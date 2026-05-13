@@ -1,0 +1,42 @@
+{
+  "name": "technology",
+  "label": "Software Engineering — Tech Knowledge Base",
+  "description": "Programming languages, frameworks, concepts and best practices.",
+  "observations": [
+    "Python is a high-level interpreted programming language",
+    "Python is widely used for machine learning and data science",
+    "Rust is a systems programming language focused on memory safety",
+    "Rust achieves memory safety without a garbage collector",
+    "TypeScript is a statically typed superset of JavaScript",
+    "React is a JavaScript library for building user interfaces",
+    "React was created by Facebook and open-sourced in 2013",
+    "FastAPI is a modern Python web framework for building APIs",
+    "FastAPI is based on Pydantic and uses type hints for validation",
+    "PostgreSQL is an open-source relational database",
+    "PostgreSQL supports JSON natively making it useful for flexible schemas",
+    "Redis is an in-memory data store used for caching",
+    "Docker packages applications into portable containers",
+    "Kubernetes orchestrates containers at scale",
+    "GraphQL is a query language for APIs developed by Facebook",
+    "REST APIs communicate over HTTP using standard methods",
+    "Machine learning models learn patterns from training data",
+    "Neural networks are inspired by the structure of the human brain",
+    "Large language models like GPT are trained on vast text datasets",
+    "Transformers use attention mechanisms to process sequences",
+    "Vector databases store embeddings for similarity search",
+    "RAG stands for Retrieval Augmented Generation",
+    "RAG retrieves relevant documents before generating a response",
+    "Embeddings represent text as dense numerical vectors",
+    "Git is a distributed version control system created by Linus Torvalds",
+    "CI/CD automates the process of testing and deploying code",
+    "Microservices split applications into small independent services",
+    "An API gateway handles routing and authentication for microservices",
+    "SOLID principles guide object-oriented software design",
+    "Test-driven development writes tests before writing code"
+  ],
+  "test_queries": [
+    "What is Python used for?",
+    "How does RAG work?",
+    "What is the difference between REST and GraphQL?"
+  ]
+}

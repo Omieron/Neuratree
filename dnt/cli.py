@@ -35,6 +35,8 @@ def main() -> None:
         _dashboard()
     elif cmd == "chat":
         asyncio.run(_chat(args[1:]))
+    elif cmd == "seed":
+        asyncio.run(_seed(args[1:]))
     elif cmd == "bench":
         _bench()
     elif cmd == "demo":
@@ -165,6 +167,66 @@ async def _chat(args: list[str]) -> None:
             + (f"  ·  {_GREEN}saved ~{saved}t ({stats.savings_pct}%){_R}" if saved > 0 else _R)
         )
         print()
+
+
+async def _seed(args: list[str]) -> None:
+    from dnt.data.loader import list_seeds, load_seed, get_seed
+    from dnt import DNT, DNTConfig
+
+    subcmd = args[0] if args else "list"
+
+    if subcmd == "list":
+        seeds = list_seeds()
+        print(f"\n{_B}  Available seed datasets{_R}")
+        print(f"{_DIM}  {'─'*44}{_R}")
+        for s in seeds:
+            print(f"  {_CYAN}{s['name']:<14}{_R} {s['label']}")
+            print(f"  {_GRAY}{' '*14} {s['count']} observations — {s['description']}{_R}")
+        print()
+
+    elif subcmd == "load":
+        name = args[1] if len(args) > 1 else ""
+        if not name:
+            print(f"\n  Usage: dnt seed load <name>\n")
+            return
+
+        dnt = DNT(config=DNTConfig(
+            consolidate_every=999,
+            activation_threshold=0.05,
+            hebbian_lr=0.3,
+            tau1=10.0,
+        ))
+
+        print(f"\n  Loading '{name}'…")
+        try:
+            result = await load_seed(dnt, name)
+        except FileNotFoundError as e:
+            print(f"\n  {_YELLOW}{e}{_R}\n")
+            return
+
+        print(f"\n{_B}  {result['label']}{_R}")
+        print(f"  {_GREEN}{result['loaded']} observations loaded{_R}")
+        print(f"  {result['nodes']} nodes  ·  {result['edges']} edges")
+
+        # test a few queries
+        print(f"\n{_DIM}  Running sample queries…{_R}\n")
+        seed_data = get_seed(name)
+        test_queries = seed_data.get("test_queries", [])
+        if not test_queries:
+            # generic queries based on seed name
+            if name == "company":
+                test_queries = ["Who is the CEO?", "What does Acme Corp build?", "Who manages engineering?"]
+            elif name == "technology":
+                test_queries = ["What is Python used for?", "How does RAG work?", "What is Rust?"]
+            else:
+                test_queries = ["What is this about?"]
+
+        for q in test_queries:
+            ctx = await dnt.query(q)
+            print(f"  {_BLUE}Q:{_R} {q}")
+            print(f"  {_GREEN}A:{_R} {ctx}\n")
+    else:
+        print(f"\n  Usage: dnt seed list | dnt seed load <name>\n")
 
 
 def _bench() -> None:

@@ -22,10 +22,11 @@ _HTML = (Path(__file__).parent / "app.html").read_text(encoding="utf-8")
 # ── Singleton DNT instance ────────────────────────────────────────────────────
 
 _dnt: DNT = DNT(config=DNTConfig(
-    consolidate_every=999,   # manual only from UI
+    consolidate_every=999,
     buffer_size=50,
     activation_threshold=0.05,
     hebbian_lr=0.3,
+    tau1=10.0,   # prevent aggressive node splitting
 ))
 _observations: List[str] = []
 _last_context: str = ""
@@ -167,6 +168,24 @@ async def node_detail(node_id: str) -> JSONResponse:
             for n, r in neighbors
         ],
     })
+
+
+@app.get("/seeds")
+async def seeds_list() -> JSONResponse:
+    from dnt.data.loader import list_seeds
+    return JSONResponse(list_seeds())
+
+
+@app.post("/seed/{name}")
+async def seed_load(name: str) -> JSONResponse:
+    from dnt.data.loader import load_seed, get_seed
+    try:
+        seed_obs = get_seed(name).get("observations", [])
+        result   = await load_seed(_dnt, name)
+        _observations.extend(seed_obs)
+        return JSONResponse({"ok": True, **result, **_stats_dict()})
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
 
 
 @app.post("/reset")

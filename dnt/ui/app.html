@@ -287,6 +287,15 @@ select:focus { border-color: var(--accent); }
     <div id="buffer-list"></div>
   </div>
 
+  <div id="seed-section" style="margin-top:20px">
+    <div class="sec">Load seed data</div>
+    <select id="seed-select" style="margin-bottom:8px">
+      <option value="">Loading…</option>
+    </select>
+    <button class="btn-default" style="width:100%;border-radius:8px" onclick="loadSeed()">Load</button>
+    <div id="seed-msg" style="font-size:0.68rem;color:var(--green);margin-top:6px;min-height:16px"></div>
+  </div>
+
   <div style="flex:1"></div>
 
   <div class="sep"></div>
@@ -556,6 +565,39 @@ function esc(s) {
 }
 
 api('GET', '/stats').then(updateStats);
+loadSeedList();
+
+async function loadSeedList() {
+  const seeds = await api('GET', '/seeds');
+  if (!seeds) return;
+  const sel = document.getElementById('seed-select');
+  sel.innerHTML = '<option value="">— choose a dataset —</option>';
+  seeds.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.name;
+    o.textContent = `${s.label}  (${s.count} obs)`;
+    sel.appendChild(o);
+  });
+}
+
+async function loadSeed() {
+  const name = document.getElementById('seed-select').value;
+  const msg  = document.getElementById('seed-msg');
+  if (!name) return;
+
+  msg.style.color = 'var(--text3)';
+  msg.textContent = 'Loading…';
+
+  const d = await api('POST', `/seed/${name}`);
+  if (!d) { msg.style.color = 'var(--red)'; msg.textContent = 'Failed.'; return; }
+
+  updateStats(d);
+  refreshGraph();
+  refreshNodeDropdown();
+
+  msg.style.color = 'var(--green)';
+  msg.textContent = `${d.loaded} observations loaded — ${d.nodes} nodes, ${d.edges} edges`;
+}
 </script>
 </body>
 </html>

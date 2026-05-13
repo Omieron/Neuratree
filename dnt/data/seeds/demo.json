@@ -1,0 +1,22 @@
+{
+  "name": "demo",
+  "label": "Quick Demo — 10 observations",
+  "description": "Minimal dataset to see the neuron tree form instantly.",
+  "observations": [
+    "Alice is the CEO of Acme Corp",
+    "Bob is the CTO of Acme Corp",
+    "Acme Corp builds automation software called AutoFlow",
+    "Alice previously worked at Google",
+    "Bob has a PhD from MIT",
+    "AutoFlow processes two million tasks per day",
+    "Acme Corp raised 40 million dollars from Sequoia",
+    "Alice prefers written communication over meetings",
+    "Bob insists on code reviews for every pull request",
+    "Acme Corp was founded in San Francisco in 2018"
+  ],
+  "test_queries": [
+    "Who is Alice?",
+    "What does Acme Corp do?",
+    "Who funded Acme Corp?"
+  ]
+}

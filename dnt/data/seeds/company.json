@@ -1,0 +1,43 @@
+{
+  "name": "company",
+  "label": "Acme Corp — Company Knowledge Base",
+  "description": "Personnel, structure, projects and culture of a fictional tech company.",
+  "observations": [
+    "Alice Chen is the CEO of Acme Corp",
+    "Bob Martinez is the CTO of Acme Corp",
+    "Carol White is the Head of Product at Acme Corp",
+    "David Kim is the Lead Engineer at Acme Corp",
+    "Alice Chen reports directly to the board of directors",
+    "Bob Martinez manages the entire engineering department",
+    "Carol White reports to Alice Chen",
+    "David Kim reports to Bob Martinez",
+    "Acme Corp was founded in 2018 in San Francisco",
+    "Acme Corp builds industrial automation software",
+    "Acme Corp has 120 employees across three offices",
+    "The engineering team at Acme Corp has 45 engineers",
+    "Acme Corp's main product is called AutoFlow",
+    "AutoFlow is a workflow automation platform for factories",
+    "AutoFlow integrates with robotics systems via REST APIs",
+    "Acme Corp raised a Series B of 40 million dollars in 2023",
+    "The main investor in Acme Corp is Sequoia Capital",
+    "Acme Corp is profitable since Q3 2024",
+    "Alice Chen previously worked at Google for eight years",
+    "Bob Martinez has a PhD in computer science from MIT",
+    "Carol White joined Acme Corp from Stripe in 2021",
+    "David Kim built the core AutoFlow engine from scratch",
+    "Acme Corp uses Python and Rust for backend services",
+    "Acme Corp uses React for all frontend applications",
+    "The engineering culture at Acme Corp values small focused teams",
+    "Acme Corp has weekly all-hands meetings every Monday",
+    "Alice Chen prefers written communication over meetings",
+    "Bob Martinez insists on code reviews for every pull request",
+    "Acme Corp has a zero-bug policy for production releases",
+    "AutoFlow processes over two million tasks per day"
+  ],
+  "test_queries": [
+    "Who is the CEO of Acme Corp?",
+    "What does Acme Corp build?",
+    "Who manages the engineering team?",
+    "How much funding did Acme Corp raise?"
+  ]
+}
