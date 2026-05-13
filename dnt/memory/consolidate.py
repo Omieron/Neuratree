@@ -87,10 +87,12 @@ class ConsolidationEngine:
         while True:
             try:
                 observations = await self._queue.get()
-                await self._process(observations)
-                self._queue.task_done()
             except asyncio.CancelledError:
                 break
+            try:
+                await self._process(observations)
+            finally:
+                self._queue.task_done()
 
     async def _process(self, observations: List[AtomicObservation]) -> None:
         all_triplets = []

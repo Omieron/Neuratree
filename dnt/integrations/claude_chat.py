@@ -35,11 +35,13 @@ class ClaudeChat:
         model: str = "claude-haiku-4-5-20251001",
         system: str = DEFAULT_SYSTEM,
         dnt_config: Optional[DNTConfig] = None,
+        max_tokens: int = 4096,
     ) -> None:
         import anthropic
-        self._client  = anthropic.AsyncAnthropic(api_key=api_key)
-        self._model   = model
-        self._system  = system
+        self._client     = anthropic.AsyncAnthropic(api_key=api_key)
+        self._model      = model
+        self._system     = system
+        self._max_tokens = max_tokens
         self._dnt     = DNT(config=dnt_config or DNTConfig(
             consolidate_every=4,
             buffer_size=40,
@@ -64,7 +66,7 @@ class ClaudeChat:
         # 3. Call the model
         response = await self._client.messages.create(
             model=self._model,
-            max_tokens=1024,
+            max_tokens=self._max_tokens,
             system=system,
             messages=[{"role": "user", "content": user_message}],
         )

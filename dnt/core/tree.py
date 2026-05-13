@@ -15,8 +15,8 @@ class NeuronTree:
 
     def __init__(self) -> None:
         self._graph: nx.DiGraph = nx.DiGraph()
-        # id -> NeuronNode for fast lookups
         self._nodes: Dict[UUID, NeuronNode] = {}
+        self._label_index: Dict[str, UUID] = {}  # lowercase label → id for O(1) lookup
 
     # ------------------------------------------------------------------
     # Mutation
@@ -24,6 +24,7 @@ class NeuronTree:
 
     def add_node(self, node: NeuronNode) -> None:
         self._nodes[node.id] = node
+        self._label_index[node.label.lower()] = node.id
         self._graph.add_node(str(node.id), **node.model_dump())
 
     def add_edge(self, edge: NeuronEdge) -> None:
@@ -55,11 +56,8 @@ class NeuronTree:
         return self._nodes.get(node_id)
 
     def find_node_by_label(self, label: str) -> Optional[NeuronNode]:
-        label_lower = label.lower()
-        for node in self._nodes.values():
-            if node.label.lower() == label_lower:
-                return node
-        return None
+        node_id = self._label_index.get(label.lower())
+        return self._nodes.get(node_id) if node_id else None
 
     def has_edge(self, source_id: UUID, target_id: UUID) -> bool:
         return self._graph.has_edge(str(source_id), str(target_id))

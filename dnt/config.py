@@ -16,8 +16,9 @@ class DNTConfig(BaseSettings):
     consolidate_every: int = 10
     max_depth: int = 5
 
-    # GHSOM
-    tau1: float = 0.5
+    # GHSOM — tau1 yüksek tutularak normal kullanımda bölünme önlenir;
+    # sadece gerçekten aşırı yüklü node'lar genişler.
+    tau1: float = 5.0
     tau2: float = 0.01
     hebbian_lr: float = 0.1
     decay_factor: float = 0.99

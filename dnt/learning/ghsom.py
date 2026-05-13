@@ -35,12 +35,8 @@ class GHSOMGrower:
     # ------------------------------------------------------------------
 
     def _effective_tau1(self, tree: NeuronTree) -> float:
-        """
-        tau1 grows slightly with tree size so large trees expand
-        less aggressively than small ones. Capped at 0.9.
-        """
         n = tree.node_count
-        return min(0.9, self._config.tau1 * (1.0 + n * 0.01))
+        return self._config.tau1 * (1.0 + n * 0.01)
 
     # ------------------------------------------------------------------
     # Growth decision

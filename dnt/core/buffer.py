@@ -21,11 +21,12 @@ class WorkingMemoryBuffer:
         Phase 1: simple keyword matching.
         Returns observations where at least one query token appears in raw_text.
         """
-        tokens = set(query.lower().split())
+        import re
+        tokens = set(re.findall(r'\b\w+\b', query.lower()))
         results: List[AtomicObservation] = []
 
         for obs in self._buffer:
-            text_tokens = set(obs.raw_text.lower().split())
+            text_tokens = set(re.findall(r'\b\w+\b', obs.raw_text.lower()))
             if tokens & text_tokens:
                 results.append(obs)
 
