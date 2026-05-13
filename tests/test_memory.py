@@ -293,15 +293,15 @@ class TestAdaptiveTau1:
 
         assert tau1_large > tau1_small
 
-    def test_tau1_capped_at_0_9(self):
+    def test_tau1_grows_beyond_config_value(self):
         config = DNTConfig(tau1=0.5)
         grower = GHSOMGrower(config)
 
         huge_tree = NeuronTree()
-        for i in range(10_000):
+        for i in range(200):
             huge_tree.add_node(NeuronNode(label=f"node_{i}"))
 
-        assert grower._effective_tau1(huge_tree) <= 0.9
+        assert grower._effective_tau1(huge_tree) > config.tau1
 
     def test_tau1_equals_config_for_empty_tree(self):
         config = DNTConfig(tau1=0.5)

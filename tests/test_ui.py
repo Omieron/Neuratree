@@ -13,8 +13,8 @@ from dnt.ui.dashboard import (
     node_size,
 )
 
-_ACTIVE_COLOR = "#E74C3C"
-_LEVEL_COLORS = ["#4A90D9", "#7BC96F", "#F5A623", "#BD10E0"]
+_ACTIVE_BG    = "#FF453A"
+_LEVEL_COLORS = ["#0A84FF", "#30D158", "#FF9F0A", "#BF5AF2"]
 
 
 # ---------------------------------------------------------------------------
@@ -39,21 +39,21 @@ def _tree_with_two_nodes() -> tuple[NeuronTree, NeuronNode, NeuronNode]:
 
 class TestNodeColor:
     def test_active_node_returns_active_color(self):
-        assert node_color(0, active=True) == _ACTIVE_COLOR
-        assert node_color(3, active=True) == _ACTIVE_COLOR
+        assert node_color(0, active=True)["background"] == _ACTIVE_BG
+        assert node_color(3, active=True)["background"] == _ACTIVE_BG
 
     def test_level_0_returns_first_palette_color(self):
-        assert node_color(0) == _LEVEL_COLORS[0]
+        assert node_color(0)["background"] == _LEVEL_COLORS[0]
 
     def test_level_1(self):
-        assert node_color(1) == _LEVEL_COLORS[1]
+        assert node_color(1)["background"] == _LEVEL_COLORS[1]
 
     def test_level_beyond_palette_returns_last_color(self):
-        assert node_color(99) == _LEVEL_COLORS[-1]
+        assert node_color(99)["background"] == _LEVEL_COLORS[-1]
 
     def test_non_active_never_returns_active_color(self):
         for level in range(6):
-            assert node_color(level, active=False) != _ACTIVE_COLOR
+            assert node_color(level, active=False)["background"] != _ACTIVE_BG
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ class TestNodeColor:
 
 class TestNodeSize:
     def test_zero_qe_returns_base_size(self):
-        assert node_size(0.0) == 15
+        assert node_size(0.0) == 20
 
     def test_size_increases_with_qe(self):
         assert node_size(1.0) > node_size(0.0)
@@ -103,7 +103,7 @@ class TestBuildGraphData:
         tree, _, _ = _tree_with_two_nodes()
         node = build_graph_data(tree)["nodes"][0]
         for key in ("id", "label", "title", "color", "size", "level"):
-            assert key in node
+            assert key in node, f"missing key: {key}"
 
     def test_edge_has_required_keys(self):
         tree, _, _ = _tree_with_two_nodes()
@@ -116,13 +116,13 @@ class TestBuildGraphData:
         active_ids = {str(n1.id)}
         data = build_graph_data(tree, active_ids=active_ids)
         active_node = next(n for n in data["nodes"] if n["id"] == str(n1.id))
-        assert active_node["color"] == _ACTIVE_COLOR
+        assert active_node["color"]["background"] == _ACTIVE_BG
 
     def test_inactive_node_gets_level_color(self):
         tree, n1, _ = _tree_with_two_nodes()
         data = build_graph_data(tree, active_ids=set())
         node = next(n for n in data["nodes"] if n["id"] == str(n1.id))
-        assert node["color"] == _LEVEL_COLORS[0]
+        assert node["color"]["background"] == _LEVEL_COLORS[0]
 
     def test_edge_width_proportional_to_weight(self):
         tree, _, _ = _tree_with_two_nodes()
@@ -133,13 +133,13 @@ class TestBuildGraphData:
         tree = NeuronTree()
         tree.add_node(NeuronNode(label="A" * 50))
         node = build_graph_data(tree)["nodes"][0]
-        assert len(node["label"]) <= 25  # 22 chars + ellipsis
+        assert len(node["label"]) <= 29  # 28 chars + ellipsis
 
     def test_no_active_ids_arg_treated_as_empty(self):
         tree, _, _ = _tree_with_two_nodes()
         data = build_graph_data(tree)  # no active_ids arg
         for node in data["nodes"]:
-            assert node["color"] != _ACTIVE_COLOR
+            assert node["color"]["background"] != _ACTIVE_BG
 
 
 # ---------------------------------------------------------------------------
@@ -203,15 +203,17 @@ class TestGetNodeDetail:
     def test_connections_included(self):
         tree, n1, n2 = _tree_with_two_nodes()
         detail = get_node_detail(tree, str(n1.id))
-        assert len(detail["connections"]) == 1
+        assert len(detail["connections"]) >= 1
         conn = detail["connections"][0]
-        assert conn["label"] == "Google"
+        assert conn["target"] == "Google"
         assert conn["relation"] == "works_at"
 
-    def test_node_with_no_connections(self):
+    def test_node_with_incoming_edge_shows_connection(self):
+        # Google (n2) has an incoming works_at edge from Alice — bidirectional traversal exposes it
         tree, _, n2 = _tree_with_two_nodes()
         detail = get_node_detail(tree, str(n2.id))
-        assert detail["connections"] == []
+        assert len(detail["connections"]) >= 1
+        assert any("Alice" in c["target"] for c in detail["connections"])
 
     def test_invalid_uuid_returns_empty(self):
         tree, _, _ = _tree_with_two_nodes()

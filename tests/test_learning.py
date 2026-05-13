@@ -68,7 +68,7 @@ class TestTripletExtractor:
         assert result[0].object == "Google"
 
     @pytest.mark.asyncio
-    async def test_heuristic_fewer_than_two_entities_returns_empty(self):
+    async def test_heuristic_no_entities_and_no_content_words_returns_empty(self):
         extractor = self._extractor()
         mock_doc = MagicMock()
         mock_doc.ents = []
@@ -76,7 +76,8 @@ class TestTripletExtractor:
         mock_nlp = MagicMock(return_value=mock_doc)
         extractor._nlp = mock_nlp
 
-        result = await extractor.extract(_obs("hello world"))
+        # single-character input: no regex match, no 4+ char content words
+        result = await extractor.extract(_obs("x"))
         assert result == []
 
     # --- OpenAI path ---
